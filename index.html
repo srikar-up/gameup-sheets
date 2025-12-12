@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+      :root {
+        --bg: #121212; --card: #1e1e1e; --text: #ffffff; --text-sub: #b0b0b0; --input-bg: #2c2c2c;
+        --gold: #FFD700; --silver: #C0C0C0; --bronze: #CD7F32; --steel: #71797E;
+        --reward: #ff7597; --success: #03dac6; --primary: #bb86fc; --note: #fff9c4; --repeat: #9c27b0;
+      }
+      body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; padding-bottom: 100px; }
+      
+      .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .app-title { font-weight: 800; font-size: 24px; color: var(--gold); display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
+      .toggle-group { background: #333; padding: 4px; border-radius: 24px; display: flex; gap: 5px; }
+      .toggle-btn { background: transparent; color: #aaa; border: none; padding: 6px 14px; border-radius: 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s;}
+      .toggle-btn.active { background: var(--text); color: black; }
+
+      #alert-container { display: none; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+      .alert-box { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); color: #5e2129; padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px; animation: slideDown 0.5s ease-out; }
+      .alert-box.Other { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); color: #004d40; }
+      @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      .alert-icon { font-size: 32px; } .alert-text { font-weight: bold; font-size: 16px; } .alert-sub { font-size: 12px; opacity: 0.8; }
+
+      .stats-container { display: flex; gap: 15px; margin-bottom: 15px; background: var(--card); padding: 20px; border-radius: 12px; align-items: center; border: 1px solid #333; }
+      .level-circle { width: 50px; height: 50px; border-radius: 50%; background: var(--gold); color: #000; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 20px; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+      .xp-bar { height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+      .xp-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.5s ease; }
+      .time-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+      .time-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .time-label { font-size: 11px; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+      .digital-display { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: bold; color: var(--success); }
+      .stopwatch-controls { display: flex; gap: 10px; margin-top: 10px; }
+      .sw-btn { border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; color: black; }
+
+      .view-section { display: none; }
+      .view-section.active { display: block; animation: fadeIn 0.3s ease-in; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Counters Grid */
+      .counters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+      .counter-card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; text-align: center; }
+      .counter-name { font-weight: bold; font-size: 16px; margin-bottom: 10px; color: var(--primary); }
+      .counter-val { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: bold; margin: 15px 0; }
+      .counter-controls { display: flex; justify-content: center; gap: 15px; }
+
+      /* Notes, Cards, etc (Existing) */
+      .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+      .note-card { background: #fff9c4; color: #333; padding: 20px; border-radius: 2px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); position: relative; min-height: 120px; transform: rotate(-1deg); transition: transform 0.2s; }
+      .note-card:hover { transform: rotate(0deg) scale(1.02); z-index: 10; }
+      .note-card.Temporary { background: #e1bee7; }
+      .note-pin { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #cf6679; border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
+      .note-content { font-family: 'Indie Flower', cursive, sans-serif; font-size: 16px; line-height: 1.4; white-space: pre-wrap; }
+      .note-delete { position: absolute; top: 5px; right: 5px; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+      .note-card:hover .note-delete { opacity: 0.5; } .note-delete:hover { opacity: 1; color: #cf6679; }
+
+      .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; }
+      .filter-select { background: var(--input-bg); color: white; border: 1px solid #444; padding: 8px 12px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+      .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+      .card { background: var(--card); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; border-left: 5px solid transparent; position: relative; transition: transform 0.2s, opacity 0.3s; }
+      .card.Gold { border-left-color: var(--gold); } .card.Silver { border-left-color: var(--silver); } .card.Bronze { border-left-color: var(--bronze); } .card.Steel { border-left-color: var(--steel); }
+      .card.Repeating { border-left-color: var(--repeat); } .card.Repeating .rank-badge { background: var(--repeat); color: white; } .card.Repeating .progress-fg { background: var(--repeat); }
+      .card.completed { opacity: 0.8; border: 1px solid var(--success); background: #1a2e2b; } .card.completed .rank-badge { background: var(--success) !important; color: black !important; } .card.completed .progress-fg { background: var(--success) !important; }
+      .rank-badge { position: absolute; top: 15px; right: 15px; font-size: 10px; font-weight: bold; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; color: #000; }
+      .card-header { margin-bottom: 5px; margin-right: 60px; display: flex; align-items: center; gap: 5px;}
+      .task-desc { font-size: 13px; color: var(--text-sub); margin-bottom: 10px; line-height: 1.4; }
+      .reward-box { font-size: 12px; color: var(--reward); margin-bottom: 10px; display: flex; align-items: center; gap: 5px; font-weight: bold; }
+      .controls { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 15px; }
+      .btn-circle { background: #333; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.1s; }
+      .btn-circle:active { transform: scale(0.9); } .btn-circle:disabled { opacity: 0.3; cursor: not-allowed; }
+      .progress-bg { background: #333; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+      .progress-fg { height: 100%; width: 0%; transition: width 0.3s ease-out; }
+      .card.Gold .progress-fg { background: var(--gold); } .card.Silver .progress-fg { background: var(--silver); } .card.Bronze .progress-fg { background: var(--bronze); } .card.Steel .progress-fg { background: var(--steel); } .card.completed .progress-fg { background: var(--success); }
+
+      .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+      .chart-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #333; }
+      .chart-title { font-size: 14px; color: var(--text-sub); margin-bottom: 15px; font-weight: 600; text-transform: uppercase; }
+      .highlight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+      .highlight-card { background: #252525; padding: 15px; border-radius: 10px; border-left: 4px solid var(--primary); }
+      .highlight-label { font-size: 11px; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px; }
+      .highlight-val { font-size: 18px; font-weight: bold; color: white; }
+
+      .fab { position: fixed; bottom: 30px; right: 30px; background: var(--gold); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3); cursor: pointer; color: black; z-index: 100; transition: transform 0.2s; }
+      .fab:hover { transform: scale(1.1); }
+      .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 200; }
+      .modal-content { background: var(--card); padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; border: 1px solid #333; position: relative; }
+      .input-group { margin-bottom: 15px; }
+      .input-group label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 5px; }
+      input, select, textarea { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid #444; color: white; border-radius: 8px; box-sizing: border-box; }
+      .btn-save { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; }
+      #victoryModal .modal-content { text-align: center; border: 2px solid var(--gold); box-shadow: 0 0 30px rgba(255, 215, 0, 0.2); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+      @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .victory-title { font-size: 24px; font-weight: 800; color: var(--gold); margin-bottom: 10px; }
+      .victory-xp { font-size: 32px; font-weight: bold; color: white; margin: 10px 0; }
+      .victory-reward { background: #333; padding: 10px; border-radius: 8px; color: var(--reward); margin-top: 15px; }
+    </style>
+  </head>
+  <body>
+
+    <div class="header-row">
+      <div class="app-title">STONKS <span class="material-icons">sports_esports</span></div>
+      <div class="toggle-group">
+        <button id="btn-list" class="toggle-btn active" onclick="switchView('list')"><span class="material-icons" style="font-size:16px">list</span> Quests</button>
+        <button id="btn-counters" class="toggle-btn" onclick="switchView('counters')"><span class="material-icons" style="font-size:16px">iso</span> Work</button>
+        <button id="btn-notes" class="toggle-btn" onclick="switchView('notes')"><span class="material-icons" style="font-size:16px">sticky_note_2</span> Notes</button>
+        <button id="btn-dash" class="toggle-btn" onclick="switchView('dash')"><span class="material-icons" style="font-size:16px">bar_chart</span> Stats</button>
+      </div>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <div class="stats-container">
+      <div class="level-circle" id="lvl-display">1</div>
+      <div style="flex-grow:1; margin-left: 15px;">
+        <div style="display:flex; justify-content:space-between; font-size:14px;">
+          <span style="font-weight:600; color:var(--gold);">Level Progress</span>
+          <span id="xp-text" style="color:var(--text-sub)">Loading...</span>
+        </div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="time-container">
+      <div class="time-card"><div class="time-label">India Time (IST)</div><div class="digital-display" id="ist-clock">--:--:--</div></div>
+      <div class="time-card">
+        <div class="time-label">Focus Timer</div><div class="digital-display" id="sw-display" style="color:white;">00:00:00</div>
+        <div class="stopwatch-controls">
+          <button class="sw-btn" style="background:var(--success)" onclick="startStopwatch()">START</button>
+          <button class="sw-btn" style="background:var(--reward)" onclick="stopStopwatch()">STOP</button>
+          <button class="sw-btn" style="background:#ccc" onclick="resetStopwatch()">RESET</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEWS -->
+    <div id="list-view" class="view-section active">
+      <div class="filter-bar">
+        <select id="filter-year" class="filter-select" onchange="applyFilters()"><option value="all">All Years</option><option value="2024">2024</option><option value="2025">2025</option></select>
+        <select id="filter-month" class="filter-select" onchange="applyFilters()"><option value="all">All Months</option><option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option></select>
+        <select id="filter-priority" class="filter-select" onchange="applyFilters()"><option value="all">All Ranks</option><option value="Gold">Gold</option><option value="Silver">Silver</option><option value="Bronze">Bronze</option><option value="Steel">Steel</option></select>
+      </div>
+      <div id="app" class="task-grid"><div style="text-align:center; color:#666;">Loading...</div></div>
+    </div>
+
+    <div id="counters-view" class="view-section">
+      <div id="counters-container" class="counters-grid"><div style="color:#666; grid-column:1/-1; text-align:center;">No counters yet.</div></div>
+    </div>
+
+    <div id="notes-view" class="view-section">
+      <div id="notes-container" class="notes-grid"><div style="color:#666; grid-column:1/-1; text-align:center;">No notes found.</div></div>
+    </div>
+
+    <div id="dash-view" class="view-section">
+      <div class="highlight-grid">
+        <div class="highlight-card"><div class="highlight-label">Best Month</div><div class="highlight-val" id="hl-best-month">--</div></div>
+        <div class="highlight-card"><div class="highlight-label">Total XP</div><div class="highlight-val" id="hl-total-xp">0</div></div>
+        <div class="highlight-card"><div class="highlight-label">Quests Done</div><div class="highlight-val" id="hl-total-count">0</div></div>
+        <div class="highlight-card"><div class="highlight-label">Success Rate</div><div class="highlight-val" id="hl-rate">0%</div></div>
+      </div>
+      <div class="dash-grid">
+        <div class="chart-card" style="grid-column: 1 / -1;"><div class="chart-title">XP Trend (Jan - Dec)</div><div style="height: 250px;"><canvas id="xpChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Rank Breakdown</div><div style="height: 200px; display:flex; justify-content:center;"><canvas id="priorityChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Type Distribution</div><div style="height: 200px; display:flex; justify-content:center;"><canvas id="typeChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Status Breakdown</div><div style="position:relative; height:200px; display:flex; justify-content:center;"><canvas id="statusChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="fab" onclick="handleFabClick()"><span class="material-icons" id="fab-icon">add</span></div>
+
+    <!-- MODALS -->
+    <div id="taskModal" class="modal" onclick="closeModal(event)">
+      <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--gold);">New Quest</h3>
+        <div class="input-group"><input type="text" id="t-name" placeholder="Quest Title"></div>
+        <div class="input-group"><textarea id="t-desc" placeholder="Quest Details..." style="height:60px;"></textarea></div>
+        <div class="input-group" style="display:flex; gap:10px;">
+           <div style="flex:1"><label>Rank</label><select id="t-priority"><option value="Gold">Gold</option><option value="Silver">Silver</option><option value="Bronze">Bronze</option><option value="Steel" selected>Steel</option></select></div>
+           <div style="flex:1"><label>Type</label><select id="t-type"><option value="Repeating">Repeating (Daily Reset)</option><option value="Daily">Daily</option><option value="Monthly">Monthly</option><option value="Reminder">Reminder</option></select></div>
+        </div>
+        <div class="input-group"><input type="text" id="t-reward" placeholder="Reward"></div>
+        <div class="input-group"><label>Due Date</label><input type="date" id="t-date"></div>
+        <div class="input-group"><label>Target</label><input type="number" id="t-target" value="1"></div>
+        <button class="btn-save" onclick="submitTask()">CREATE QUEST</button>
+      </div>
+    </div>
+
+    <div id="counterModal" class="modal" onclick="closeModal(event)">
+      <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--primary);">New Counter</h3>
+        <div class="input-group"><input type="text" id="c-name" placeholder="Work Name (e.g. DSA, Pushups)"></div>
+        <button class="btn-save" style="background:var(--primary); color:black;" onclick="submitCounter()">ADD COUNTER</button>
+      </div>
+    </div>
+
+    <div id="noteModal" class="modal" onclick="closeModal(event)">
+      <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--note); color:black; background:var(--note); padding:5px 10px; display:inline-block; transform:rotate(-2deg);">New Note</h3>
+        <div class="input-group" style="margin-top:15px;"><textarea id="n-content" placeholder="Write something..." style="height:100px; background:#fff; color:#000;"></textarea></div>
+        <div class="input-group"><label>Type</label><select id="n-type" onchange="toggleNoteDuration()"><option value="Permanent">Permanent</option><option value="Temporary">Temporary</option></select></div>
+        <div class="input-group" id="n-duration-group" style="display:none;"><label>Duration (Days)</label><input type="number" id="n-duration" value="1"></div>
+        <button class="btn-save" style="background:var(--note); color:black;" onclick="submitNote()">PIN NOTE</button>
+      </div>
+    </div>
+
+    <div id="eventModal" class="modal" onclick="closeModal(event)">
+      <div class="modal-content">
+        <h3 style="margin-top:0; color:#ff9a9e;">New Event</h3>
+        <div class="input-group"><label>Type</label><select id="e-type" onchange="toggleEventLabel()"><option value="Birthday">Birthday 🎂</option><option value="Other">Other Event 📅</option></select></div>
+        <div class="input-group"><input type="text" id="e-name" placeholder="Person's Name"></div>
+        <div class="input-group"><label>Date</label><input type="date" id="e-date"></div>
+        <div class="input-group"><label>Recurrence</label><select id="e-recurrence"><option value="Annual">Annual (Repeats every year)</option><option value="One-time">One-time (Once only)</option></select></div>
+        <button class="btn-save" style="background:#ff9a9e; color:#5e2129;" onclick="submitEvent()">SAVE EVENT</button>
+      </div>
+    </div>
+
+    <div id="fabMenuModal" class="modal" onclick="closeModal(event)">
+      <div class="modal-content" style="text-align:center;">
+        <h3>What to add?</h3>
+        <div style="display:grid; gap:10px;">
+          <button class="btn-save" onclick="openSpecificModal('taskModal')">QUEST</button>
+          <button class="btn-save" style="background:var(--primary); color:black;" onclick="openSpecificModal('counterModal')">WORK COUNTER</button>
+          <button class="btn-save" style="background:var(--note); color:black;" onclick="openSpecificModal('noteModal')">NOTE</button>
+          <button class="btn-save" style="background:#ff9a9e; color:#5e2129;" onclick="openSpecificModal('eventModal')">EVENT</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="victoryModal" class="modal" onclick="closeVictory(event)">
+      <div class="modal-content">
+        <div class="victory-title">QUEST COMPLETE!</div>
+        <div class="victory-xp" id="vic-xp">+150 XP</div>
+        <div style="color:#aaa;">You crushed it!</div>
+        <div id="vic-reward-container" style="display:none;"><div class="victory-reward"><span class="material-icons" style="vertical-align:middle; color:var(--reward)">card_giftcard</span> <span id="vic-reward-text" style="font-weight:bold;">Ice Cream</span></div><div style="font-size:10px; color:#666; margin-top:5px;">You earned this reward.</div></div>
+        <button class="btn-save" style="margin-top:20px;" onclick="document.getElementById('victoryModal').style.display='none'">AWESOME</button>
+      </div>
+    </div>
+
+    <script>
+      if (typeof google === 'undefined') {
+        var mockData = {
+          tasks: [], counters: [{id:1, name:"DSA", total:150}],
+          alerts: [{ name: "Alex", daysLeft: 5, date: "12/08/2025", type: "Birthday" }],
+          notes: [{ id: 1, content: "Remember to drink water!", type: "Permanent" }],
+          userStats: { level: 4, totalXP: 400, currentLevelXP: 100, nextLevelThreshold: 250 }
+        };
+        window.google = { script: { run: { withSuccessHandler: function(cb) {
+          return {
+            getTrackerData: function() { setTimeout(function() { cb(mockData); }, 500); },
+            updateProgress: function(id, val) { mockData.userStats.totalXP += 20; setTimeout(function() { cb(mockData); }, 300); },
+            updateCounter: function(id, val) { mockData.counters[0].total += val; mockData.userStats.totalXP += 10; setTimeout(function() { cb(mockData); }, 300); },
+            addTask: function(o) { cb(mockData); }, addNote: function() { cb(mockData); }, addEvent: function() { cb(mockData); }, addCounter: function() { cb(mockData); }, deleteNote: function() { cb(mockData); }
+          };
+        } } } };
+      }
+
+      let globalData = []; let charts = {}; let stopwatchInterval = null; let stopwatchElapsed = 0; let currentView = 'list';
+
+      window.onload = function() {
+        document.getElementById('t-date').valueAsDate = new Date();
+        document.getElementById('filter-month').value = new Date().getMonth();
+        document.getElementById('filter-year').value = new Date().getFullYear();
+        refreshData();
+        setInterval(updateClock, 1000); updateClock();
+      };
+      
+      function updateClock() { document.getElementById('ist-clock').innerText = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: true, hour:'2-digit', minute:'2-digit', second:'2-digit' }); }
+      function startStopwatch() { if(stopwatchInterval) return; stopwatchInterval = setInterval(function() { stopwatchElapsed++; updateStopwatchDisplay(); }, 1000); }
+      function stopStopwatch() { clearInterval(stopwatchInterval); stopwatchInterval = null; }
+      function resetStopwatch() { stopStopwatch(); stopwatchElapsed = 0; updateStopwatchDisplay(); }
+      function updateStopwatchDisplay() { let h = Math.floor(stopwatchElapsed/3600), m = Math.floor((stopwatchElapsed%3600)/60), s = stopwatchElapsed%60; document.getElementById('sw-display').innerText = (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s); }
+
+      function refreshData() { 
+        google.script.run.withSuccessHandler(function(d) { 
+          globalData = d; renderStats(d.userStats); renderAlerts(d.alerts); renderNotes(d.notes); renderCounters(d.counters); applyFilters(); 
+        }).getTrackerData(); 
+      }
+
+      function switchView(view) {
+        currentView = view;
+        document.querySelectorAll('.view-section').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.toggle-btn').forEach(function(el) { el.classList.remove('active'); });
+        var viewId = (view === 'dash') ? 'dash-view' : (view + '-view');
+        document.getElementById(viewId).classList.add('active');
+        document.getElementById('btn-' + view).classList.add('active');
+        if(view === 'dash') applyFilters(); 
+      }
+
+      function renderStats(stats) {
+        document.getElementById('lvl-display').innerText = stats.level;
+        document.getElementById('xp-text').innerText = `${stats.currentLevelXP} / ${stats.nextLevelThreshold} XP`;
+        document.getElementById('xp-fill-bar').style.width = (stats.currentLevelXP / stats.nextLevelThreshold) * 100 + "%";
+      }
+
+      function renderCounters(counters) {
+        const container = document.getElementById('counters-container');
+        container.innerHTML = "";
+        if (!counters || counters.length === 0) { container.innerHTML = "<div style='color:#666; grid-column:1/-1; text-align:center;'>No counters yet.</div>"; return; }
+        counters.forEach(function(c) {
+          const div = document.createElement('div');
+          div.className = 'counter-card';
+          div.innerHTML = `
+            <div class="counter-name">${c.name}</div>
+            <div class="counter-val" id="cnt-val-${c.id}">${c.total}</div>
+            <div class="counter-controls">
+              <button class="btn-circle" onclick="updateCounter(${c.id}, -1)"><span class="material-icons">remove</span></button>
+              <button class="btn-circle" style="background:var(--primary); color:black;" onclick="updateCounter(${c.id}, 1)"><span class="material-icons">add</span></button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      function updateCounter(id, val) {
+        const c = globalData.counters.find(x => x.id == id);
+        if(c) {
+           c.total += val; if(c.total < 0) c.total = 0;
+           document.getElementById(`cnt-val-${id}`).innerText = c.total;
+           if(val > 0) {
+             // Optimistic XP update
+             confetti({ particleCount: 50, spread: 40, origin: { y: 0.7 }, colors: ['#bb86fc'] });
+           }
+        }
+        google.script.run.withSuccessHandler(function(d) { globalData = d; renderStats(d.userStats); }).updateCounter(id, val);
+      }
+
+      function renderAlerts(alerts) {
+        const container = document.getElementById('alert-container');
+        container.innerHTML = ""; 
+        if (!alerts || alerts.length === 0) { container.style.display = 'none'; return; }
+        container.style.display = 'flex'; 
+        alerts.forEach(function(alert) {
+          const isBirthday = alert.type === 'Birthday';
+          const icon = isBirthday ? 'cake' : 'event';
+          const boxClass = isBirthday ? 'alert-box' : 'alert-box Other';
+          let msg = isBirthday ? `${alert.daysLeft} days until ${alert.name}'s Birthday!` : `${alert.daysLeft} days until ${alert.name}`;
+          if (alert.daysLeft === 0) msg = isBirthday ? `🎉 Happy Birthday ${alert.name}! 🎉` : `📅 ${alert.name} is Today!`;
+          const div = document.createElement('div');
+          div.className = boxClass;
+          div.innerHTML = `<span class="material-icons alert-icon">${icon}</span><div><div class="alert-text">${msg}</div><div class="alert-sub">${alert.date}</div></div>`;
+          container.appendChild(div);
+        });
+      }
+
+      function renderNotes(notes) {
+        const container = document.getElementById('notes-container');
+        container.innerHTML = "";
+        if (!notes || notes.length === 0) { container.innerHTML = "<div style='color:#666; grid-column:1/-1; text-align:center;'>No notes.</div>"; return; }
+        notes.forEach(function(n) {
+          const div = document.createElement('div');
+          div.className = `note-card ${n.type}`;
+          div.innerHTML = `<div class="note-pin"></div><div class="note-delete" onclick="deleteNote(${n.id})"><span class="material-icons">close</span></div><div class="note-content">${n.content}</div><div class="note-tag">${n.type}</div>`;
+          container.appendChild(div);
+        });
+      }
+
+      function applyFilters() {
+        if (!globalData.tasks) return;
+        const fYear = document.getElementById('filter-year').value;
+        const fMonth = document.getElementById('filter-month').value;
+        const fPriority = document.getElementById('filter-priority').value;
+        const today = new Date(); today.setHours(0,0,0,0);
+
+        const filtered = globalData.tasks.filter(function(t) {
+          const tDate = new Date(t.dateRaw); tDate.setHours(0,0,0,0);
+          if (fPriority !== 'all' && t.priority !== fPriority) return false;
+          if (t.type === 'Repeating') { const d = new Date(t.dateRaw); d.setHours(0,0,0,0); return today <= d; }
+          else if (t.type === 'Daily') { return tDate.getTime() === today.getTime(); }
+          else {
+             if (fYear !== 'all' && tDate.getFullYear() != fYear) return false;
+             if (fMonth !== 'all' && tDate.getMonth() != fMonth) return false;
+             return true;
+          }
+        });
+        const rankOrder = { "Gold": 1, "Silver": 2, "Bronze": 3, "Steel": 4 };
+        filtered.sort(function(a,b) { return (rankOrder[a.priority] || 99) - (rankOrder[b.priority] || 99); });
+        renderTasks(filtered);
+        renderDashboard(filtered);
+      }
+
+      function renderDashboard(tasks) {
+        if(!tasks) return;
+        let completed = tasks.filter(function(t) { return t.isComplete; }).length;
+        let total = tasks.length;
+        let pending = total - completed;
+        let rate = total === 0 ? 0 : Math.round((completed/total)*100);
+        let totalXP = tasks.reduce(function(acc, t) { return t.isComplete ? acc + t.xpValue : acc; }, 0);
+        
+        let bestMonthName = "--", bestMonthVal = -1;
+        // Simplified Best Month logic for current view
+        let tempHistory = {};
+        tasks.forEach(function(t) {
+           if(t.isComplete) {
+             let key = new Date(t.dateRaw).toLocaleString('default', { month: 'short' });
+             if(!tempHistory[key]) tempHistory[key] = 0; tempHistory[key] += t.xpValue;
+             if(tempHistory[key] > bestMonthVal) { bestMonthVal = tempHistory[key]; bestMonthName = key; }
+           }
+        });
+
+        // Data Prep for Charts
+        let pCounts = { 'Gold': 0, 'Silver': 0, 'Bronze': 0, 'Steel': 0 };
+        tasks.forEach(function(t) { if(pCounts[t.priority] !== undefined) pCounts[t.priority]++; });
+        let tCounts = { 'Daily': 0, 'Monthly': 0, 'Reminder': 0, 'Repeating': 0 };
+        tasks.forEach(function(t) { if(tCounts[t.type] !== undefined) tCounts[t.type]++; });
+        const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        let xpData = new Array(12).fill(0);
+        const fYear = document.getElementById('filter-year').value;
+        const trendTasks = globalData.tasks.filter(function(t) {
+           if (fYear !== 'all' && new Date(t.dateRaw).getFullYear() != fYear) return false;
+           return true; 
+        });
+        trendTasks.forEach(function(t) { if(t.isComplete) xpData[new Date(t.dateRaw).getMonth()] += t.xpValue; });
+
+        document.getElementById('hl-best-month').innerText = bestMonthName;
+        document.getElementById('hl-total-xp').innerText = totalXP;
+        document.getElementById('hl-total-count').innerText = completed;
+        document.getElementById('hl-rate').innerText = rate + "%";
+        
+        if(charts.xp) charts.xp.destroy(); if(charts.priority) charts.priority.destroy();
+        if(charts.type) charts.type.destroy(); if(charts.status) charts.status.destroy();
+
+        charts.xp = new Chart(document.getElementById('xpChart'), { type: 'bar', data: { labels: monthLabels, datasets: [{ label: 'XP', data: xpData, backgroundColor: '#bb86fc', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' } }, x: { grid: { display: false } } } } });
+        charts.priority = new Chart(document.getElementById('priorityChart'), { type: 'doughnut', data: { labels: ['Gold', 'Silver', 'Bronze', 'Steel'], datasets: [{ data: [pCounts.Gold, pCounts.Silver, pCounts.Bronze, pCounts.Steel], backgroundColor: ['#FFD700', '#C0C0C0', '#CD7F32', '#71797E'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#fff' } } } } });
+        charts.type = new Chart(document.getElementById('typeChart'), { type: 'pie', data: { labels: ['Repeating', 'Daily', 'Monthly', 'Reminder'], datasets: [{ data: [tCounts.Repeating, tCounts.Daily, tCounts.Monthly, tCounts.Reminder], backgroundColor: ['#9c27b0', '#bb86fc', '#03dac6', '#ff7597'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#fff' } } } } });
+        charts.status = new Chart(document.getElementById('statusChart'), { type: 'pie', data: { labels: ['Done', 'Pending'], datasets: [{ data: [completed, pending], backgroundColor: ['#03dac6', '#2c2c2c'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+      }
+
+      function renderTasks(tasks) {
+        const container = document.getElementById('app'); container.innerHTML = "";
+        if (tasks.length === 0) return container.innerHTML = "<div style='grid-column:1/-1; text-align:center; padding:40px; color:#666;'>No quests found.</div>";
+        tasks.forEach(function(t) {
+          let pct = (t.current / t.target) * 100; if (pct > 100) pct = 100;
+          const isDone = t.isComplete || t.current >= t.target;
+          const cardClass = isDone ? `card completed` : `card ${t.type === 'Repeating' ? 'Repeating' : t.priority}`;
+          let rewardHtml = t.reward ? `<div class="reward-box"><span class="material-icons" style="font-size:14px">card_giftcard</span> ${t.reward}</div>` : '';
+          let iconHtml = t.type === 'Repeating' ? '<span class="material-icons" style="font-size:14px; color:var(--repeat); vertical-align:middle; margin-left:5px;">autorenew</span>' : '';
+          const card = document.createElement('div'); card.className = cardClass; card.id = `card-${t.id}`;
+          card.innerHTML = `<div id="badge-${t.id}" class="rank-badge">${isDone ? "COMPLETED" : t.priority}</div><div class="card-header"><span style="font-weight:bold; font-size:16px;">${t.task}</span>${iconHtml}</div><div style="margin-bottom:5px;"><span class="task-date">${t.dateDisplay} &bull; ${t.xpValue} XP</span></div><div class="task-desc">${t.description || ''}</div>${rewardHtml}<div class="progress-bg"><div id="bar-${t.id}" class="progress-fg" style="width:${pct}%"></div></div><div class="controls"><span id="count-${t.id}" style="font-size:14px; color:${isDone ? '#03dac6' : '#aaa'}; font-weight:bold;">${t.current} / ${t.target}</span><div style="display:flex; gap:10px;"><button id="btn-sub-${t.id}" class="btn-circle" onclick="update(${t.id}, -1)" ${isDone ? 'disabled' : ''}><span class="material-icons">remove</span></button><button id="btn-add-${t.id}" class="btn-circle" style="background:${isDone ? '#333' : 'var(--text)'}; color:${isDone ? '#555' : 'black'};" onclick="update(${t.id}, 1)" ${isDone ? 'disabled' : ''}><span class="material-icons">add</span></button></div></div>`;
+          container.appendChild(card);
+        });
+      }
+
+      function update(id, val) {
+        const task = globalData.tasks.find(function(t) { return t.id == id; }); if (!task) return;
+        let newVal = task.current + val; if (newVal < 0) newVal = 0; if (newVal > task.target) newVal = task.target; if (newVal === task.current) return;
+        task.current = newVal;
+        const pct = (task.current / task.target) * 100;
+        document.getElementById(`count-${id}`).innerText = `${task.current} / ${task.target}`;
+        const barEl = document.getElementById(`bar-${id}`); if(barEl) barEl.style.width = `${pct}%`;
+        const isDone = task.current >= task.target;
+        if (isDone) {
+           task.isComplete = true; 
+           const cardEl = document.getElementById(`card-${id}`); if(cardEl) cardEl.classList.add('completed');
+           const badgeEl = document.getElementById(`badge-${id}`); if(badgeEl) { badgeEl.innerText = "COMPLETED"; badgeEl.style.background = "var(--success)"; badgeEl.style.color = "black"; }
+           if(barEl) barEl.style.background = "var(--success)";
+           const btnAdd = document.getElementById(`btn-add-${id}`); if(btnAdd) { btnAdd.disabled = true; btnAdd.style.background="#333"; btnAdd.style.color="#555"; }
+           triggerCelebration(task);
+        }
+        google.script.run.withSuccessHandler(function(newData) { globalData = newData; renderStats(newData.userStats); }).updateProgress(id, val);
+      }
+      
+      function triggerCelebration(task) {
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FFD700', '#C0C0C0', '#CD7F32', '#03dac6'] });
+        document.getElementById('vic-xp').innerText = `+${task.xpValue} XP`;
+        if(task.reward) { document.getElementById('vic-reward-container').style.display = 'block'; document.getElementById('vic-reward-text').innerText = task.reward; } else { document.getElementById('vic-reward-container').style.display = 'none'; }
+        document.getElementById('victoryModal').style.display = 'flex';
+      }
+
+      function handleFabClick() { document.getElementById('fabMenuModal').style.display = 'flex'; }
+      function openSpecificModal(id) { document.getElementById('fabMenuModal').style.display = 'none'; document.getElementById(id).style.display = 'flex'; }
+      function closeModal(e) { if(e.target.classList.contains('modal')) e.target.style.display = 'none'; }
+      function closeVictory(e) { if(e.target.id === 'victoryModal') document.getElementById('victoryModal').style.display = 'none'; }
+      function toggleNoteDuration() { const type = document.getElementById('n-type').value; document.getElementById('n-duration-group').style.display = (type === 'Temporary') ? 'block' : 'none'; }
+      function toggleEventLabel() { const type = document.getElementById('e-type').value; document.getElementById('e-name').placeholder = (type === 'Birthday') ? "Person's Name" : "Event Name"; }
+
+      function submitTask() {
+        const name = document.getElementById('t-name').value; const desc = document.getElementById('t-desc').value; const type = document.getElementById('t-type').value; const priority = document.getElementById('t-priority').value; const reward = document.getElementById('t-reward').value; const date = document.getElementById('t-date').value; const target = document.getElementById('t-target').value;
+        if(!name || !target || !date) return alert("Missing fields");
+        const taskObj = { name, description: desc, type, priority, reward, date, target };
+        document.getElementById('taskModal').style.display = 'none';
+        google.script.run.withSuccessHandler(function(d) { globalData = d; refreshData(); }).addTask(taskObj);
+      }
+      function submitNote() {
+        const content = document.getElementById('n-content').value; const type = document.getElementById('n-type').value; const duration = document.getElementById('n-duration').value;
+        if(!content) return; document.getElementById('noteModal').style.display = 'none';
+        google.script.run.withSuccessHandler(function(d) { globalData = d; refreshData(); }).addNote(content, type, duration);
+      }
+      function submitCounter() {
+        const name = document.getElementById('c-name').value;
+        if(!name) return; document.getElementById('counterModal').style.display = 'none';
+        google.script.run.withSuccessHandler(function(d) { globalData = d; refreshData(); }).addCounter(name);
+      }
+      function submitEvent() {
+        const name = document.getElementById('e-name').value; const date = document.getElementById('e-date').value; const type = document.getElementById('e-type').value; const recurrence = document.getElementById('e-recurrence').value;
+        if(!name || !date) return; document.getElementById('eventModal').style.display = 'none';
+        google.script.run.withSuccessHandler(function(d) { globalData = d; refreshData(); }).addEvent(name, date, type, recurrence);
+      }
+      function deleteNote(id) { if(confirm("Delete note?")) { google.script.run.withSuccessHandler(function(d) { globalData = d; refreshData(); }).deleteNote(id); } }
+    </script>
+  </body>
+</html>
